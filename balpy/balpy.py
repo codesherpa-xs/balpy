@@ -9,7 +9,7 @@ import time
 import sys
 import pkgutil
 from decimal import *
-from functools import cache
+from functools import lru_cache as cache
 import traceback
 
 # low level web3
@@ -21,6 +21,9 @@ import eth_abi
 
 # high level web3
 from multicaller import multicaller
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(os.path.dirname(SCRIPT_DIR))
 
 # balpy modules
 from . import balancerErrors as be
@@ -121,7 +124,7 @@ class balpy(object):
 
 							# ====== Pools and Associated Contracts ======
 							"WeightedPoolFactory": {
-								"directory":"20220908-weighted-pool-v2"
+								"directory":"20210418-weighted-pool"
 							},
 							"WeightedPool2TokensFactory": {
 								"directory":"20210418-weighted-pool"
@@ -145,7 +148,7 @@ class balpy(object):
 								"directory":"20211208-stable-phantom-pool"
 							},
 							"ComposableStablePoolFactory": {
-								"directory":"20220906-composable-stable-pool"
+								"directory":"20220817-composable-stable-pool"
 							},
 							"AaveLinearPoolFactory": {
 								"directory":"20220817-aave-rebalanced-linear-pool"
@@ -155,6 +158,9 @@ class balpy(object):
 							},
 							"NoProtocolFeeLiquidityBootstrappingPoolFactory": {
 								"directory":"20211202-no-protocol-fee-lbp"
+							},
+							"TwammPoolFactory": {
+								"directory":"twamm-pool"
 							},
 
 							# ===== Relayers and Infra =====
@@ -243,9 +249,6 @@ class balpy(object):
 							},
 							"DistributionScheduler": {
 								"directory":"20220422-distribution-scheduler"
-							},
-							"ProtocolFeePercentagesProvider": {
-								"directory":"20220725-protocol-fee-percentages-provider"
 							}
 						};
 
@@ -893,7 +896,6 @@ class balpy(object):
 
 		intWithDecimalsWeights = [int(Decimal(poolData["tokens"][t]["weight"]) * Decimal(1e18)) for t in tokens];
 		swapFeePercentage = int(Decimal(poolData["swapFeePercent"]) * Decimal(1e16));
-		rateProviders = [self.web3.toChecksumAddress(poolData["tokens"][token]["rateProvider"]) for token in tokens];
 
 		if not self.balWeightsEqualOne(poolData):
 			return(False);
@@ -903,8 +905,7 @@ class balpy(object):
 		createFunction = factory.functions.create(	poolData["name"], 
 													poolData["symbol"], 
 													checksumTokens, 
-													intWithDecimalsWeights,
-													rateProviders,
+													intWithDecimalsWeights, 
 													swapFeePercentage, 
 													owner);
 		return(createFunction);
@@ -1048,6 +1049,39 @@ class balpy(object):
 													managementFeePercentage);
 		return(createFunction);
 
+	def balCreateFnTwammPoolFactory(self, poolData):
+		factory = self.balLoadContract("TwammPoolFactory");
+		(tokens, checksumTokens) = self.balSortTokens(list(poolData["tokens"].keys()));
+		swapFeePercentage = int(Decimal(poolData["swapFeePercent"]) * Decimal(1e16));
+		intWithDecimalsWeights = [int(Decimal(poolData["tokens"][t]["weight"]) * Decimal(1e18)) for t in tokens];
+		# managementFeePercentage = int(Decimal(poolData["managementFeePercent"]) * Decimal(1e16));
+		# Deployed factory doesn't allow asset managers
+		# assetManagers = [0 for i in range(0,len(tokens))]
+		owner = self.balSetOwner(poolData);
+		if not owner == self.address:
+			self.WARN("!!! You are not the owner for your Twamm Pool !!!")
+			self.WARN("You:\t\t" + self.address)
+			self.WARN("Pool Owner:\t" + owner)
+
+			print();
+			self.WARN("Only the pool owner can call permissioned functions, such as changing weights or the management fee.")
+			self.WARN(owner + " should either be you, or a multi-sig or other contract that you control and can call permissioned functions from.")
+			cancelTimeSec = 30;
+			self.WARN("If the owner mismatch is was unintentional, you have " + str(cancelTimeSec) + " seconds to cancel with Ctrl+C.")
+			time.sleep(cancelTimeSec);
+
+		print(checksumTokens);
+		print(intWithDecimalsWeights);
+		createFunction = factory.functions.create(	poolData["name"],
+													poolData["symbol"],
+													checksumTokens,
+													intWithDecimalsWeights,
+													swapFeePercentage,
+													owner,
+													poolData["ltoContract"]);
+		print(createFunction);
+		return(createFunction);
+
 	def balCreateFnStablePhantomPoolFactory(self, poolData):
 		factory = self.balLoadContract("StablePhantomPoolFactory");
 		(tokens, checksumTokens) = self.balSortTokens(list(poolData["tokens"].keys()));
@@ -1141,6 +1175,8 @@ class balpy(object):
 			createFunction = self.balCreateFnMetaStablePoolFactory(poolDescription);
 		if poolFactoryName == "InvestmentPoolFactory":
 			createFunction = self.balCreateFnInvestmentPoolFactory(poolDescription);
+		if poolFactoryName == "TwammPoolFactory":
+			createFunction = self.balCreateFnTwammPoolFactory(poolDescription);
 		if poolFactoryName == "StablePhantomPoolFactory":
 			createFunction = self.balCreateFnStablePhantomPoolFactory(poolDescription);
 		if poolFactoryName == "ComposableStablePoolFactory":
@@ -1160,6 +1196,7 @@ class balpy(object):
 			print("\tLiquidityBootstrappingPool");
 			print("\tMetaStablePool");
 			print("\tInvestmentPool");
+			print("\tTwammPool");
 			print("\tStablePhantomPool");
 			print("\tComposableStablePoolFactory");
 			print("\tAaveLinearPool");
@@ -1218,7 +1255,7 @@ class balpy(object):
 	def balGetJoinKindEnum(self, poolId, joinKind):
 		factoryName = self.balFindPoolFactory(poolId);
 
-		usingWeighted = factoryName in ["WeightedPoolFactory", "WeightedPool2TokensFactory", "LiquidityBootstrappingPoolFactory", "InvestmentPoolFactory", "NoProtocolFeeLiquidityBootstrappingPoolFactory"];
+		usingWeighted = factoryName in ["WeightedPoolFactory", "WeightedPool2TokensFactory", "LiquidityBootstrappingPoolFactory", "InvestmentPoolFactory", "TwammPoolFactory", "NoProtocolFeeLiquidityBootstrappingPoolFactory"];
 		usingStable = factoryName in ["StablePoolFactory", "MetaStablePoolFactory"];
 		usingStablePhantom = factoryName in ["StablePhantomPoolFactory", "ComposableStablePoolFactory"];
 
@@ -1491,6 +1528,7 @@ class balpy(object):
 
 	@cache
 	def balLoadContract(self, contractName):
+		print(self.deploymentAddresses[contractName])
 		contract = self.web3.eth.contract(address=self.deploymentAddresses[contractName], abi=self.abis[contractName]);
 		return(contract)
 
@@ -1582,10 +1620,13 @@ class balpy(object):
 		if "priceRateCacheDuration" in decodedPoolData.keys():
 			for i in range(len(decodedPoolData["priceRateCacheDuration"])):
 				decodedPoolData["priceRateCacheDuration"][i] = int(decodedPoolData["priceRateCacheDuration"][i]);
-		if poolFactoryType == "InvestmentPoolFactory" and not "assetManagers" in decodedPoolData.keys():
+		if poolFactoryType in "InvestmentPoolFactory" and not "assetManagers" in decodedPoolData.keys():
 			decodedPoolData["assetManagers"] = [];
 			for i in range(len(decodedPoolData["weights"])):
 				decodedPoolData["assetManagers"].append(self.ZERO_ADDRESS);
+
+		# if poolFactoryType == "TwammPoolFactory" and not "orderBlockInterval" in decodedPoolData.keys():
+		# 	decodedPoolData["orderBlockInterval"] = 100
 
 		# times for pause/buffer
 		daysToSec = 24*60*60; # hr * min * sec
@@ -1602,17 +1643,16 @@ class balpy(object):
 		poolAbi = self.balPoolGetAbi(poolType);
 
 		structInConstructor = False;
+
+		print(poolType)
+
 		if poolType == "WeightedPool":
-			zero_ams = [self.ZERO_ADDRESS] * len(decodedPoolData["tokens"]);
-			args = [(decodedPoolData["name"],
+			args = [self.deploymentAddresses["Vault"],
+					decodedPoolData["name"],
 					decodedPoolData["symbol"],
 					decodedPoolData["tokens"],
-					decodedPoolData["normalizedWeights"],
-					decodedPoolData["rateProviders"],
-					zero_ams,
-					int(decodedPoolData["swapFeePercentage"])),
-					self.deploymentAddresses["Vault"],
-					self.deploymentAddresses["ProtocolFeePercentagesProvider"],
+					decodedPoolData["weights"],
+					int(decodedPoolData["swapFeePercentage"]),
 					int(pauseWindowDurationSec),
 					int(bufferPeriodDurationSec),
 					decodedPoolData["owner"]];
@@ -1679,6 +1719,17 @@ class balpy(object):
 					decodedPoolData["swapEnabledOnStart"],
 					int(decodedPoolData["managementSwapFeePercentage"])];
 			structInConstructor = True;
+		elif poolType == "TwammPool":
+			args = [self.deploymentAddresses["Vault"],
+					decodedPoolData["name"],
+					decodedPoolData["symbol"],
+					decodedPoolData["tokens"],
+					decodedPoolData["weights"],
+					int(decodedPoolData["swapFeePercentage"]),
+					int(pauseWindowDurationSec),
+					int(bufferPeriodDurationSec),
+					decodedPoolData["owner"],
+					decodedPoolData["longTermOrdersContract"]];
 		elif poolType == "StablePhantomPool":
 			args = [self.deploymentAddresses["Vault"],
 				decodedPoolData["name"],
@@ -1717,6 +1768,8 @@ class balpy(object):
 		else:
 			self.ERROR("PoolType " + poolType + " not found!")
 			return(False);
+
+		print(args)
 
 		# encode constructor data
 		poolContract = self.balLoadArbitraryContract(address, self.mc.listToString(poolAbi));
@@ -1987,7 +2040,7 @@ class balpy(object):
 				pidAndFns.append((poolId, "getPausedState"));
 
 				# === using weighted math ===
-				if poolType in ["Weighted", "LiquidityBootstrapping", "Investment"]:
+				if poolType in ["Weighted", "LiquidityBootstrapping", "Investment", "Twamm"]:
 					self.mc.addCall(currPool.address, currPool.abi, 'getNormalizedWeights');
 					pidAndFns.append((poolId, "getNormalizedWeights"));
 
