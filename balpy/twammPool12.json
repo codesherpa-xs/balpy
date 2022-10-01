@@ -1,0 +1,26 @@
+{
+    "network": "goerli",
+    "gasSpeed": "average",
+    "gasPriceOverride": "",
+    "name": "Twamm12",
+    "symbol": "twamm12",
+    "poolType": "TwammPool",
+    "swapFeePercent": "0.1",
+    "fromInternalBalance": false,
+    "swapEnabledOnStart": true,
+    "owner": "0xdD88DB355D6beb64813fd3b29B73A246DAed6FC8",
+    "ltoContract": "0xC392dF9Ee383d6Bce110757FdE7762f0372f6A5D",
+    "tokens": {
+        "0x499d11e0b6eac7c0593d8fb292dcbbf815fb29ae": {
+            "weight": "0.5",
+            "initialBalance": "0.1",
+            "allowance": -1
+        },
+        "0xBA62BCfcAaFc6622853cca2BE6Ac7d845BC0f2Dc": {
+            "weight": "0.5",
+            "initialBalance": "1",
+            "allowance": -1
+        }
+    },
+    "poolId": "20c0b25ace39df183b9ccbbd1d575764544aeb190002000000000000000001f8"
+}
