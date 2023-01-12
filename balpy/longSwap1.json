@@ -1,0 +1,26 @@
+{
+    "network": "mainnet",
+    "gasSpeed": "average",
+    "gasPriceOverride": "",
+    "name": "LongSwap1 WETH-USDC",
+    "symbol": "ls1-weth-usdc",
+    "poolType": "TwammPool",
+    "swapFeePercent": "0.1",
+    "fromInternalBalance": false,
+    "swapEnabledOnStart": true,
+    "owner": "0xd3c5DDB9E57d961302D4BDd12106485E25E21508",
+    "ltoContract": "0x9D3f9803826EB51B046D4366a5cf7313308E7CDC",
+    "tokens": {
+        "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48": {
+            "weight": "0.5",
+            "initialBalance": "425",
+            "allowance": -1
+        },
+        "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2": {
+            "weight": "0.5",
+            "initialBalance": "0.35",
+            "allowance": -1
+        }
+    },
+    "poolId": "f7a3ffd8d6ae4b2564a18591d6f3783ec5f79d3a000200000000000000000417"
+}

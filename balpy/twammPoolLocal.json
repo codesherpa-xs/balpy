@@ -1,0 +1,26 @@
+{
+    "network": "mainnet",
+    "gasSpeed": "average",
+    "gasPriceOverride": "",
+    "name": "Twamm17",
+    "symbol": "twamm17",
+    "poolType": "TwammPool",
+    "swapFeePercent": "0.1",
+    "fromInternalBalance": false,
+    "swapEnabledOnStart": true,
+    "owner": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    "ltoContract": "0xd0EC100F1252a53322051a95CF05c32f0C174354",
+    "tokens": {
+        "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48": {
+            "weight": "0.5",
+            "initialBalance": "500",
+            "allowance": -1
+        },
+        "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2": {
+            "weight": "0.5",
+            "initialBalance": "0.41246",
+            "allowance": -1
+        }
+    },
+    "poolId": "65703fc15c25bf6cc2d6b8c17b50020f14f0de01000200000000000000000417"
+}

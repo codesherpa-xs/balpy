@@ -474,7 +474,11 @@ class balpy(object):
 		print("\tGas Estimate:\t", gasEstimate);
 		print("\tGas Price:\t", gasPriceGwei, "Gwei");
 		print("\tNonce:\t\t", nonce);
-
+		print({'chainId': chainIdNetwork,
+				'gas': gasEstimate,
+				'gasPrice': self.web3.toWei(gasPriceGwei, 'gwei'),
+				'nonce': nonce,
+				});
 		# build transaction
 		data = fn.buildTransaction({'chainId': chainIdNetwork,
 								    'gas': gasEstimate,
