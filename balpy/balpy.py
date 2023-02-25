@@ -159,7 +159,7 @@ class balpy(object):
 							"NoProtocolFeeLiquidityBootstrappingPoolFactory": {
 								"directory":"20211202-no-protocol-fee-lbp"
 							},
-							"TwammPoolFactory": {
+							"TwammWeightedPoolFactory": {
 								"directory":"twamm-pool"
 							},
 
@@ -1054,7 +1054,7 @@ class balpy(object):
 		return(createFunction);
 
 	def balCreateFnTwammPoolFactory(self, poolData):
-		factory = self.balLoadContract("TwammPoolFactory");
+		factory = self.balLoadContract("TwammWeightedPoolFactory");
 		(tokens, checksumTokens) = self.balSortTokens(list(poolData["tokens"].keys()));
 		swapFeePercentage = int(Decimal(poolData["swapFeePercent"]) * Decimal(1e16));
 		intWithDecimalsWeights = [int(Decimal(poolData["tokens"][t]["weight"]) * Decimal(1e18)) for t in tokens];
@@ -1082,7 +1082,7 @@ class balpy(object):
 													intWithDecimalsWeights,
 													swapFeePercentage,
 													owner,
-													poolData["ltoContract"]);
+													int(poolData["orderInterval"]));
 		print(createFunction);
 		return(createFunction);
 
@@ -1179,7 +1179,7 @@ class balpy(object):
 			createFunction = self.balCreateFnMetaStablePoolFactory(poolDescription);
 		if poolFactoryName == "InvestmentPoolFactory":
 			createFunction = self.balCreateFnInvestmentPoolFactory(poolDescription);
-		if poolFactoryName == "TwammPoolFactory":
+		if poolFactoryName == "TwammWeightedPoolFactory":
 			createFunction = self.balCreateFnTwammPoolFactory(poolDescription);
 		if poolFactoryName == "StablePhantomPoolFactory":
 			createFunction = self.balCreateFnStablePhantomPoolFactory(poolDescription);
@@ -1259,7 +1259,7 @@ class balpy(object):
 	def balGetJoinKindEnum(self, poolId, joinKind):
 		factoryName = self.balFindPoolFactory(poolId);
 
-		usingWeighted = factoryName in ["WeightedPoolFactory", "WeightedPool2TokensFactory", "LiquidityBootstrappingPoolFactory", "InvestmentPoolFactory", "TwammPoolFactory", "NoProtocolFeeLiquidityBootstrappingPoolFactory"];
+		usingWeighted = factoryName in ["WeightedPoolFactory", "WeightedPool2TokensFactory", "LiquidityBootstrappingPoolFactory", "InvestmentPoolFactory", "TwammWeightedPoolFactory", "NoProtocolFeeLiquidityBootstrappingPoolFactory"];
 		usingStable = factoryName in ["StablePoolFactory", "MetaStablePoolFactory"];
 		usingStablePhantom = factoryName in ["StablePhantomPoolFactory", "ComposableStablePoolFactory"];
 
@@ -1629,7 +1629,7 @@ class balpy(object):
 			for i in range(len(decodedPoolData["weights"])):
 				decodedPoolData["assetManagers"].append(self.ZERO_ADDRESS);
 
-		# if poolFactoryType == "TwammPoolFactory" and not "orderBlockInterval" in decodedPoolData.keys():
+		# if poolFactoryType == "TwammWeightedPoolFactory" and not "orderBlockInterval" in decodedPoolData.keys():
 		# 	decodedPoolData["orderBlockInterval"] = 100
 
 		# times for pause/buffer
