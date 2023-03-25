@@ -160,7 +160,7 @@ class balpy(object):
 								"directory":"20211202-no-protocol-fee-lbp"
 							},
 							"TwammWeightedPoolFactory": {
-								"directory":"twamm-pool"
+								"directory":"20230301-twamm-pool"
 							},
 
 							# ===== Relayers and Infra =====
@@ -499,7 +499,7 @@ class balpy(object):
 			self.waitForTx(txHash);
 		return(txHash);
 
-	def waitForTx(self, txHash, timeOutSec=120):
+	def waitForTx(self, txHash, timeOutSec=1200):
 		txSuccessful = True;
 		print();
 		print("Waiting for tx:", txHash);
@@ -1554,6 +1554,14 @@ class balpy(object):
 		return(poolAbi);
 
 	@cache
+	def ltoContractGetAbi(self):
+		deploymentFolder = self.contractDirectories["TwammWeightedPoolFactory"]["directory"];
+		abiPath = os.path.join("deployments/", deploymentFolder, "abi", "LongTermOrders.json");
+		f = pkgutil.get_data(__name__, abiPath).decode();
+		poolAbi = json.loads(f);
+		return(poolAbi);
+
+	@cache
 	def balPooldIdToAddress(self, poolId):
 		if not "0x" in poolId:
 			poolId = "0x" + poolId;
@@ -1598,6 +1606,12 @@ class balpy(object):
 	def getInputData(self, txHash):
 		transaction = self.web3.eth.get_transaction(txHash);
 		return(transaction.input)
+	
+	def getLtoContract(self, txHash):
+		txReceipt = self.web3.eth.get_transaction_receipt(txHash);
+		factory = self.balLoadContract("TwammWeightedPoolFactory");
+		logs = factory.events.LongTermOrdersContractCreated().processReceipt(txReceipt);
+		return (logs[0]['args']['ltoContract'])
 
 	def balGeneratePoolCreationArguments(self, poolId, verbose=False, creationHash=None):
 		if self.network in ["arbitrum"]:
@@ -1629,8 +1643,10 @@ class balpy(object):
 			for i in range(len(decodedPoolData["weights"])):
 				decodedPoolData["assetManagers"].append(self.ZERO_ADDRESS);
 
-		# if poolFactoryType == "TwammWeightedPoolFactory" and not "orderBlockInterval" in decodedPoolData.keys():
-		# 	decodedPoolData["orderBlockInterval"] = 100
+		if poolFactoryType == "TwammWeightedPoolFactory":
+			# Get LTO contract address
+			decodedPoolData['longTermOrdersContract'] = self.getLtoContract(txHash);
+			ltoContractAbi = self.ltoContractGetAbi();
 
 		# times for pause/buffer
 		daysToSec = 24*60*60; # hr * min * sec
@@ -1723,7 +1739,7 @@ class balpy(object):
 					decodedPoolData["swapEnabledOnStart"],
 					int(decodedPoolData["managementSwapFeePercentage"])];
 			structInConstructor = True;
-		elif poolType == "TwammPool":
+		elif poolType == "TwammWeightedPool":
 			args = [self.deploymentAddresses["Vault"],
 					decodedPoolData["name"],
 					decodedPoolData["symbol"],
@@ -1734,6 +1750,22 @@ class balpy(object):
 					int(bufferPeriodDurationSec),
 					decodedPoolData["owner"],
 					decodedPoolData["longTermOrdersContract"]];
+		
+
+			ltoContract = self.balLoadArbitraryContract(address, self.mc.listToString(ltoContractAbi));
+			ltoArgs = [decodedPoolData["orderBlockInterval"]];
+			ltoData = ltoContract._encode_constructor_data(args=ltoArgs);
+			ltoEncodedData = ltoData[2:]; #cut off the 0x
+			verifyLtoCommand = "yarn hardhat verify-contract --id {} --name {} --address {} --network {} --key {} --args {}"
+			verifyLtoOutput = verifyLtoCommand.format(self.contractDirectories[poolFactoryType]["directory"],
+									"LongTermOrders",
+									decodedPoolData["longTermOrdersContract"],
+									self.network,
+									self.etherscanApiKey,
+									ltoEncodedData)
+			
+			print(verifyLtoOutput)
+			print("blah")
 		elif poolType == "StablePhantomPool":
 			args = [self.deploymentAddresses["Vault"],
 				decodedPoolData["name"],
